@@ -33,3 +33,20 @@ if __name__ == "__main__":
     idle()
     app.stop()
     print("Bot stopped. Bye !")
+
+# Dummy HTTP server to satisfy Koyeb's TCP health check
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Bot is running!')
+
+def run_server():
+    server = HTTPServer(('', 8000), SimpleHandler)
+    server.serve_forever()
+
+# Run the HTTP server in a separate thread
+threading.Thread(target=run_server, daemon=True).start()
