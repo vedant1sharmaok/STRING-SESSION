@@ -1,9 +1,13 @@
 import config
 import time
 import logging
+import asyncio
+import threading
 from pyrogram import Client, idle
-from pyromod import listen  # type: ignore
+from pyromod import listen
 from pyrogram.errors import ApiIdInvalid, ApiIdPublishedFlood, AccessTokenInvalid
+from fastapi import FastAPI
+import uvicorn
 
 logging.basicConfig(
     level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -19,34 +23,31 @@ app = Client(
     plugins=dict(root="StringGenBot"),
 )
 
+api = FastAPI()
+
+@api.get("/")
+@api.get("/health")
+async def health_check():
+    return {"status": "ok", "bot": app.me.username if app.me else "offline"}
+
+def start_fastapi():
+    uvicorn.run(api, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     print("Starting the String Generator Bot...")
     try:
         app.start()
+        app.me = app.get_me()
     except (ApiIdInvalid, ApiIdPublishedFlood):
         raise Exception("Your API_ID/API_HASH is not valid.")
     except AccessTokenInvalid:
         raise Exception("Your BOT_TOKEN is not valid.")
-    uname = app.get_me().username
-    print(f"@{uname} started successfully !")
+    
+    print(f"@{app.me.username} started successfully!")
+
+    # Start FastAPI server in a separate thread
+    threading.Thread(target=start_fastapi).start()
+
     idle()
     app.stop()
-    print("Bot stopped. Bye !")
-
-# Dummy HTTP server to satisfy Koyeb's TCP health check
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b'Bot is running!')
-
-def run_server():
-    server = HTTPServer(('', 8000), SimpleHandler)
-    server.serve_forever()
-
-# Run the HTTP server in a separate thread
-threading.Thread(target=run_server, daemon=True).start()
+    print("Bot stopped. Bye!")
